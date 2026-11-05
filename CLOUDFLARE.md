@@ -4,7 +4,7 @@
 
 1. **Cloudflare Account** with Pages and D1 enabled
 2. **Wrangler CLI** installed: `npm i -g wrangler`
-3. **GitHub repository** for CI/CD
+3. **pnpm 10** and **Node 20** on the operator's machine (deploys run locally; there is no CI/CD)
 
 ## Initial Setup
 
@@ -45,12 +45,13 @@ wrangler secret put OWNER_OPEN_ID
 # Enter the OpenID of the owner/admin user
 ```
 
-### 4. Configure GitHub Secrets
+### 4. Deploy Environment
 
-In your GitHub repository settings, add these secrets:
+Deploys run from the operator's machine (no GitHub Actions, owner decision 2026-11-05).
+Export these in the shell that runs `scripts/deploy.sh`; never commit them:
 
-- `CLOUDFLARE_API_TOKEN` - From Cloudflare dashboard
-- `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID
+- `CLOUDFLARE_API_TOKEN` - From Cloudflare dashboard (required)
+- `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID (required)
 - `JWT_SECRET` - Your JWT secret
 - `OAUTH_SERVER_URL` - OAuth server URL
 - `VITE_APP_ID` - App ID
@@ -75,17 +76,28 @@ pnpm start:cf
 
 ## Deployment
 
-### Manual Deployment
+### Production
 
 ```bash
-pnpm deploy
+pnpm run deploy            # = scripts/deploy.sh production
 ```
 
-### Automatic Deployment (GitHub Actions)
+Refuses unless the working tree is clean and `HEAD` equals `origin/main`. In a clean
+`git archive` export of `HEAD` it runs `pnpm install --no-frozen-lockfile`, `pnpm check`,
+`pnpm build`, `pnpm build:worker`, `wrangler pages deploy dist/public --project-name=opctrip01
+--branch=main`, then `wrangler d1 migrations apply opctrip01 --local` (local state only; it does
+not migrate the remote D1 database).
 
-Push to `main` branch to trigger automatic deployment.
+### Preview
 
-Pull requests get a preview deployment at `https://{branch}.opctrip01.pages.dev`.
+```bash
+pnpm run deploy:preview    # = scripts/deploy.sh preview
+```
+
+Run from a pushed feature branch (clean tree, `HEAD` equals `origin/<branch>`). Same build without
+`pnpm check`, deployed with `--branch=preview` to `https://preview.opctrip01.pages.dev`.
+
+Use `pnpm run deploy`, not `pnpm deploy` (that is pnpm's built-in `deploy` command).
 
 ## Environment Variables
 
@@ -106,6 +118,6 @@ Pull requests get a preview deployment at `https://{branch}.opctrip01.pages.dev`
 │   ├── cf-schema.ts    # Cloudflare D1 (SQLite) schema
 │   └── migrations/     # SQL migrations
 ├── client/             # React frontend (Vite)
-├── wrangler.toml       # Cloudflare config
-└── .github/workflows/   # CI/CD
+├── scripts/deploy.sh   # Local deploy (production / preview)
+└── wrangler.toml       # Cloudflare config
 ```
