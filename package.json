@@ -7,19 +7,19 @@
     "dev": "NODE_ENV=development tsx watch server/_core/index.ts",
     "dev:cf": "NODE_ENV=development tsx watch functions/_worker.ts",
     "build": "vite build",
-    "build:cf": "vite build && wrangler pages build dist/public",
-    "build:worker": "wrangler pages build dist/public",
+    "build:cf": "vite build && pnpm build:worker",
+    "build:worker": "esbuild functions/_worker.ts --bundle --format=esm --platform=browser --conditions=worker,browser --target=es2022 --outfile=dist/public/_worker.js",
     "deploy": "bash scripts/deploy.sh production",
     "deploy:preview": "bash scripts/deploy.sh preview",
     "start": "NODE_ENV=production node dist/index.js",
     "start:cf": "wrangler pages dev dist/public",
-    "check": "tsc --noEmit",
+    "check": "tsc --noEmit && tsc -p functions/tsconfig.json",
     "check:cf": "wrangler types --env-interface CloudflareEnv",
     "format": "prettier --write .",
     "test": "vitest run",
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
     "db:generate": "drizzle-kit generate --config drizzle.config.cf.ts",
-    "db:migrate:cf": "wrangler d1 migrations apply opctrip01"
+    "db:migrate:cf": "wrangler d1 migrations apply opctrip01 --remote"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",

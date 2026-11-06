@@ -9,7 +9,7 @@
  * Deploy with: npx wrangler pages deploy dist
  */
 
-import { fetchAdapter } from "@trpc/server/adapters/fetch";
+import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { Hono } from "hono";
@@ -524,11 +524,14 @@ const getCorsHeaders = (origin: string | null) => ({
 // MAIN HANDLER (Hono App)
 // =============================================================================
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<{
+  Bindings: Env;
+  Variables: { user: CfUser | null; env: Env };
+}>();
 
 // CORS preflight
 app.options("*", (c) => {
-  const origin = c.req.header("Origin");
+  const origin = c.req.header("Origin") ?? null;
   return new Response(null, {
     headers: {
       ...getCorsHeaders(origin),
@@ -540,34 +543,26 @@ app.options("*", (c) => {
 // Auth middleware - runs before tRPC
 app.use("/api/trpc/*", async (c, next) => {
   const user = await authenticateRequest(c.env, c.req.raw);
-  c.set("user", user as any);
-  c.set("env", c.env as any);
+  c.set("user", user);
+  c.set("env", c.env);
   await next();
 });
 
 // OAuth callback
 app.get("/api/oauth/callback", async (c) => {
-  return handleOAuthCallback(c.env, c.req.url);
+  return handleOAuthCallback(c.env, new URL(c.req.url));
 });
 
 // tRPC handler
 app.all("/api/trpc/:path", async (c) => {
-  const user = (c.get("user") as CfUser | null) ?? null;
+  const user = c.get("user") ?? null;
 
-  return fetchAdapter({
-    router: appRouter,
-    createContext: () =>
-      Promise.resolve({
-        user,
-        env: c.env as Env,
-        req: {} as any,
-        res: {} as any,
-      }),
+  // superjson is configured on the router (initTRPC.create above).
+  return fetchRequestHandler({
+    endpoint: "/api/trpc",
     req: c.req.raw,
-    createOptions: {
-      // @ts-ignore
-      transformer: superjson,
-    },
+    router: appRouter,
+    createContext: () => ({ user, env: c.env as Env }),
   });
 });
 

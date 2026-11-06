@@ -2,11 +2,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { sql } from "drizzle-orm";
 import {
   int,
-  mysqlEnum,
-  mysqlTable,
   text,
-  timestamp,
-  varchar,
   sqliteTable,
   integer,
 } from "drizzle-orm/sqlite-core";
